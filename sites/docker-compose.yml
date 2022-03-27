@@ -1,0 +1,78 @@
+version: '3'
+
+services:
+  database:
+    container_name: wordpress_database_${SITE_DOMAIN}
+    image: mattrob1nson/mysql:latest
+    build:
+      context: ./build/database/
+      dockerfile: ./Dockerfile
+      args:
+        - MYSQL_VERSION=${MYSQL_VERSION}
+    command: [--default-authentication-plugin=mysql_native_password]
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    hostname: wordpress_database_${SITE_DOMAIN}
+    expose:
+      - 3306
+    volumes:
+      - ${SITE_DIRECTORY}/db:/var/lib/mysql
+    networks:
+      - nginx-net
+
+  php-runtime:
+    container_name: wordpress_php_runtime_${SITE_DOMAIN}
+    image: mattrob1nson/php-runtime:latest
+    build:
+      context: ./build/php-runtime/
+      dockerfile: ./Dockerfile
+      args:
+        - PHP_VERSION=${PHP_VERSION}
+    restart: unless-stopped
+    expose:
+      - 9000
+    working_dir: /var/www/html
+    volumes:
+      - ${SITE_DIRECTORY}/www:/var/www/html
+    networks:
+      - nginx-net
+    depends_on:
+      - database
+
+  web-server:
+    container_name: wordpress_web_server_${SITE_DOMAIN}
+    image: mattrob1nson/web-server:latest
+    build:
+      context: ./build/web-server/
+      dockerfile: ./Dockerfile
+      args:
+        - NGINX_VERSION=${NGINX_VERSION}
+    restart: unless-stopped
+    volumes:
+      - ${SITE_DIRECTORY}/nginx-conf:/etc/nginx/conf.d/
+      - ${SITE_DIRECTORY}/www:/var/www/html
+    environment:
+      - VIRTUAL_HOST=${NGINX_VIRTUAL_HOST}
+      - LETSENCRYPT_HOST=${NGINX_LETSENCRYPT_HOST}
+      - LETSENCRYPT_EMAIL=${NGINX_LETSENCRYPT_EMAIL}
+    expose:
+      - 80
+      - 443
+    networks:
+      - nginx-net
+    depends_on:
+      - php-runtime
+      - database
+    links:
+      - php-runtime
+
+networks:
+  nginx-net:
+    external:
+      name: wordpress-docker_nginx-net

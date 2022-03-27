@@ -1,0 +1,9 @@
+# Generated reverse proxy configuration and certificates
+proxy/data/nginx-conf/*
+!proxy/data/nginx-conf/custom_proxy_settings.conf
+proxy/data/certs/*
+!proxy/data/certs/.keep
+
+# Site files
+sites/site-files/*
+!sites/site-files/.keep
